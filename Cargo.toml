@@ -1,0 +1,7 @@
+[workspace]
+members = [
+	"pallets/ocw-computation",
+	"runtimes/ocw-runtime",
+	"nodes/kitchen-node",
+]
+#librocksdb-sys = "6.17.3"
