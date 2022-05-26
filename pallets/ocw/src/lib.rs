@@ -110,7 +110,7 @@ pub mod pallet {
 	// https://substrate.dev/docs/en/knowledgebase/runtime/storage
 	#[pallet::storage]
 	#[pallet::getter(fn tasks)]
-	pub type Tasks<T: Config> = StorageMap<_, Blake2_128Concat, TaskId, (T::AccountId, TaskInput)>;
+	pub type Tasks<T: Config> = StorageMap<_, Blake2_128Concat, TaskId, (T::AccountId, TaskInput, T::AccountId)>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn task_assignments)]
@@ -170,6 +170,19 @@ pub mod pallet {
 				Err(BadOrigin)
 			}
 		}
+
+		// #[pallet::weight(10000)]
+		// pub fn cancel_task(origin: OriginFor<T>, task_id: TaskId) -> DispatchResult {
+		// 	let who = ensure_signed(origin)?;
+		// 	log::info!("canceling a task: ({:?}, {:?})", who, input);
+		// 	if let (owner, _) = <Tasks<T>>::get(task_id){
+		// 		if owner == who{
+		// 			<Tasks<T>>::remove(task_id)
+		// 		}
+		// 	}
+		// }
+
+
 
 		#[pallet::weight(10000)]
 		pub fn submit_task_result(origin: OriginFor<T>, task_id: TaskId, result: TaskResult)->DispatchResult{
@@ -288,7 +301,7 @@ pub mod pallet {
 			}
 			for (worker, task_ids) in <TaskAssignments<T>>::iter(){
 				for task_id in task_ids.iter() {
-					if let Some((task_owner, task_input)) = <Tasks<T>>::get(&task_id){
+					if let Some((task_owner, task_input, _)) = <Tasks<T>>::get(&task_id){
 						match Self::compute_one_task(&task_id, &task_input) {
 							Ok(_) => continue,
 							Err(e) => continue,
@@ -309,7 +322,7 @@ pub mod pallet {
 		}
 
 		fn validate_task_result_submission(who: &T::AccountId, task_id: TaskId) -> Result<(T::AccountId, usize), Error<T>>{
-			if let Some((task_owner, _)) = <Tasks<T>>::get(task_id) {
+			if let Some((task_owner, _, _)) = <Tasks<T>>::get(task_id) {
 				if <TaskAssignments<T>>::contains_key(&who) {
 					if let Some(task_ids) = <TaskAssignments<T>>::get(&who) {
 						if let Some(index) = task_ids.iter().position(|&id| id == task_id) {
@@ -321,6 +334,23 @@ pub mod pallet {
 			log::error!("Task result submission validation failed. Result of {:?} from {:?}", task_id, who);
 			Err(<Error<T>>::TaskSubmissionFailed)
 		}
+
+		// fn validate_task_cancel(who: &T::AccountId, task_id: TaskId) -> Result<(T::AccountId, usize), Error<T>>{
+		// 	if let Some((task_owner, _)) = <Tasks<T>>::get(task_id) {
+		// 		if task_owner == who {
+		// 			if <TaskAssignments<T>>::contains_key(&who) {
+		// 				if let Some(task_ids) = <TaskAssignments<T>>::get(&who) {
+		// 					if let Some(index) = task_ids.iter().position(|&id| id == task_id) {
+		// 						return Ok((task_owner, index))
+		// 					}
+		// 				}
+		// 			}
+		// 		}
+		// 	}
+		// 	log::error!("Task result submission validation failed. Result of {:?} from {:?}", task_id, who);
+		// 	Err(<Error<T>>::TaskSubmissionFailed)
+		// }
+
 		fn assign_task(who: &T::AccountId, task_input: &TaskInput) -> Result<TaskId, Error<T>>{
 			let mut workers = <Vec<T::AccountId>>::new();
 
@@ -341,10 +371,6 @@ pub mod pallet {
 				random_result = T::TaskIdRandomness::random(&subject);
 			}
 			let task_id = random_result.0;
-			<Tasks<T>>::insert(task_id, (who, task_input));
-			log::info!("Generated task id {:?} for {:?}'s submission of {:?}", task_id, who, task_input);
-
-
 
 			subject = Self::encode_and_update_nonce();
 			random_result = T::WorkerAssignmentRandomness::random(&subject);
@@ -364,6 +390,8 @@ pub mod pallet {
 				} else {
 					<TaskAssignments<T>>::insert(worker, vec![task_id])
 				}
+				<Tasks<T>>::insert(task_id, (who, task_input, worker));
+				log::info!("Generated task id {:?} for {:?}'s submission of {:?}", task_id, who, task_input);
 				log::info!("Assigned the task {:?} to a worker {:?}", task_id, worker);
 				Ok(task_id)
 			}else{
