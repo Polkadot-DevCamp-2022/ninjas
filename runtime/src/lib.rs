@@ -43,9 +43,9 @@ pub use sp_runtime::BuildStorage;
 pub use sp_runtime::{Perbill, Permill};
 
 /// Import the template pallet.
-pub use pallet_template;
+// pub use pallet_template;
 pub use pallet_ocw;
-pub use pallet_example_offchain_worker;
+// pub use pallet_example_offchain_worker;
 
 /// An index to a block.
 pub type BlockNumber = u32;
@@ -277,9 +277,9 @@ impl pallet_sudo::Config for Runtime {
 }
 
 /// Configure the pallet-template in pallets/template.
-impl pallet_template::Config for Runtime {
-	type Event = Event;
-}
+//impl pallet_template::Config for Runtime {
+//	type Event = Event;
+//}
 
 // For pallet-ocw
 impl pallet_ocw::Config for Runtime {
@@ -298,14 +298,14 @@ parameter_types! {
 	pub const UnsignedPriority: BlockNumber = 3;
 }
 
-impl pallet_example_offchain_worker::Config for Runtime {
-	type AuthorityId = pallet_example_offchain_worker::crypto::TestAuthId;
-	type Call = Call;
-	type Event = Event;
-	type GracePeriod = GracePeriod;
-	type UnsignedInterval = UnsignedInterval;
-	type UnsignedPriority = UnsignedPriority;
-}
+// impl pallet_example_offchain_worker::Config for Runtime {
+// 	type AuthorityId = pallet_example_offchain_worker::crypto::TestAuthId;
+// 	type Call = Call;
+// 	type Event = Event;
+// 	type GracePeriod = GracePeriod;
+// 	type UnsignedInterval = UnsignedInterval;
+// 	type UnsignedPriority = UnsignedPriority;
+// }
 
 impl<LocalCall> frame_system::offchain::CreateSignedTransaction<LocalCall> for Runtime
 where
@@ -373,9 +373,9 @@ construct_runtime!(
 		TransactionPayment: pallet_transaction_payment::{Pallet, Storage},
 		Sudo: pallet_sudo::{Pallet, Call, Config<T>, Storage, Event<T>},
 		// Include the custom logic from the pallet-template in the runtime.
-		TemplateModule: pallet_template::{Pallet, Call, Storage, Event<T>},
+		// TemplateModule: pallet_template::{Pallet, Call, Storage, Event<T>},
 		OcwDemo: pallet_ocw::{Pallet, Call, Storage, Event<T>},
-		OcwExample: pallet_example_offchain_worker::{Pallet, Call, Storage, Event<T>, ValidateUnsigned},
+		// OcwExample: pallet_example_offchain_worker::{Pallet, Call, Storage, Event<T>, ValidateUnsigned},
 	}
 );
 
