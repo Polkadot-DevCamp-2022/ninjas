@@ -34,7 +34,7 @@ pub mod pallet {
 
 	use serde::{Deserialize, Deserializer};
 	use sp_runtime::DispatchError::BadOrigin;
-	use crate::Event::{TaskCompleted, WorkerStarted};
+	use crate::Event::{TaskCompleted, WorkerStarted, WorkerStopped};
 
 	/// Defines application identifier for crypto keys of this module.
 	///
@@ -131,7 +131,6 @@ pub mod pallet {
 		TaskCompleted(TaskId, TaskResult),
 		TaskFailed(TaskId),
 		WorkerStarted(T::AccountId),
-
 		WorkerStopped(T::AccountId),
 	}
 
@@ -267,8 +266,8 @@ pub mod pallet {
 								}
 						});
 						T::Currency::unreserve(&who, WORKER_FEE.into());
-						// Self::deposit_event(WorkerStopped(who));
-						log::info!("Worker {:?} has been stopped", who);
+						log::info!("Worker {:?} has been stopped", &who);
+						Self::deposit_event(WorkerStopped(who));
 					}
 				}
 			}else{
