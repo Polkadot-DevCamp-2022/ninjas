@@ -33,6 +33,7 @@ sp-core = { git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-
 sp-io = { git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-10', version = '4.0.0-dev', default-features = false }
 sp-runtime = { git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-10', version = '4.0.0-dev', default-features = false }
 sp-std = { git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-10', version = '4.0.0-dev', default-features = false }
+pallet-balances = {git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-10', version = '4.0.0-dev', default-features = false }
 
 [features]
 default = ['std']
