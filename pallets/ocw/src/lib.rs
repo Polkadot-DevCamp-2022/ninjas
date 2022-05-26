@@ -34,7 +34,7 @@ pub mod pallet {
 
 	use serde::{Deserialize, Deserializer};
 	use sp_runtime::DispatchError::BadOrigin;
-	use crate::Event::TaskCompleted;
+	use crate::Event::{TaskCompleted, WorkerStarted};
 
 	/// Defines application identifier for crypto keys of this module.
 	///
@@ -130,6 +130,9 @@ pub mod pallet {
 		NewTask(TaskId, TaskInput),
 		TaskCompleted(TaskId, TaskResult),
 		TaskFailed(TaskId),
+		WorkerStarted(T::AccountId),
+
+		WorkerStopped(T::AccountId),
 	}
 
 	// Errors inform users that something went wrong.
@@ -218,16 +221,26 @@ pub mod pallet {
 			let who = ensure_signed(origin)?;
 			if T::Currency::can_reserve(&who, WORKER_FEE.into()){
 				if <Workers<T>>::contains_key(&who){
-					<Workers<T>>::mutate(&who, {|maybe_status|
-						match maybe_status{
-							Some(status) => *status = true,
-							None => ()
+					if let Some(status) = <Workers<T>>::get(&who){
+						if status {
+							return Ok(())
+						} else {
+							<Workers<T>>::mutate(&who, {
+								|maybe_status|
+									match maybe_status {
+										Some(status) => *status = true,
+										None => ()
+									}
+							});
+							T::Currency::reserve(&who, WORKER_FEE.into());
+
 						}
-					});
+					}
 				}else{
 					<Workers<T>>::insert(&who, true);
+					T::Currency::reserve(&who, WORKER_FEE.into());
 				}
-				T::Currency::reserve(&who, WORKER_FEE.into());
+				Self::deposit_event(WorkerStarted(who));
 				Ok(())
 			}else{
 				Err(BadOrigin)
@@ -238,13 +251,19 @@ pub mod pallet {
 		pub fn stop_worker(origin: OriginFor<T>) -> DispatchResult{
 			let who = ensure_signed(origin)?;
 			if <Workers<T>>::contains_key(&who){
-				<Workers<T>>::mutate(&who, {|maybe_status|
-					match maybe_status{
-						Some(status) => *status = false,
-						None => ()
+				if let Some(status) = <Workers<T>>::get(&who) {
+					if status {
+						<Workers<T>>::mutate(&who, {
+							|maybe_status|
+								match maybe_status {
+									Some(status) => *status = false,
+									None => ()
+								}
+						});
+						T::Currency::unreserve(&who, WORKER_FEE.into());
+						// Self::deposit_event(WorkerStopped(who));
 					}
-				});
-				T::Currency::unreserve(&who, WORKER_FEE.into());
+				}
 			}else{
 				<Workers<T>>::insert(&who, false);
 			}
@@ -259,6 +278,7 @@ pub mod pallet {
 		///   the bounded length.
 		///
 		fn compute_all_tasks() -> Result<(), Error<T>>{
+			log::info!("Start computing tasks: worker count ({:?}), task count({:?}) ", <Workers<T>>::iter().filter(|(_, v)| (*v) == true).count(), <Tasks<T>>::iter().count());
 			let signer = Signer::<T, T::AuthorityId>::all_accounts();
 			if !signer.can_sign() {
 				return Err(<Error<T>>::NoLocalAccount);
