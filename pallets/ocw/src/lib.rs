@@ -148,7 +148,6 @@ pub mod pallet {
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn offchain_worker(block_number: T::BlockNumber) {
-			log::info!("Doing all computations.");
 			Self::compute_all_tasks();
 		}
 	}
