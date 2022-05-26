@@ -33,7 +33,7 @@ pub mod pallet {
 	use sp_std::{collections::vec_deque::VecDeque, prelude::*, str};
 
 	use serde::{Deserialize, Deserializer};
-	use sp_runtime::DispatchError::BadOrigin;
+	use sp_runtime::DispatchError::{BadOrigin, Other};
 	use crate::Event::{TaskCompleted, WorkerStarted, WorkerStopped};
 
 	/// Defines application identifier for crypto keys of this module.
@@ -142,6 +142,7 @@ pub mod pallet {
 		TaskSubmissionFailed,
 		TaskAssignmentFailed,
 		NoLocalAccount,
+		NoWorkerAvailable,
 	}
 
 	#[pallet::hooks]
@@ -156,16 +157,16 @@ pub mod pallet {
 		pub fn submit_task(origin: OriginFor<T>, input: TaskInput) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			log::info!("submit_task: ({:?}, {:?})", who, input);
-			if T::Currency::can_reserve(&who, TASK_FEE.into()){
+			if T::Currency::can_reserve(&who, TASK_FEE.into()) {
 				match Self::assign_task(&who, &input) {
 					Ok(task_id) => {
 						Self::deposit_event(Event::NewTask(task_id, input));
 						T::Currency::reserve(&who, TASK_FEE.into());
 						Ok(())
 					},
-					Err(e) => Err(BadOrigin),
+					Err(e) => Err(Other(e.into())),
 				}
-			}else{
+			} else {
 				Err(BadOrigin)
 			}
 		}
@@ -321,8 +322,19 @@ pub mod pallet {
 			Err(<Error<T>>::TaskSubmissionFailed)
 		}
 		fn assign_task(who: &T::AccountId, task_input: &TaskInput) -> Result<TaskId, Error<T>>{
-			let mut subject = Self::encode_and_update_nonce();
+			let mut workers = <Vec<T::AccountId>>::new();
 
+			for (worker, status) in <Workers<T>>::iter(){
+				if status{
+					workers.push(worker)
+				}
+			}
+
+			if workers.len() == 0{
+				return Err(<Error<T>>::NoWorkerAvailable);
+			}
+
+			let mut subject = Self::encode_and_update_nonce();
 			let mut random_result = T::TaskIdRandomness::random(&subject);
 			while <Tasks<T>>::contains_key(random_result.0){
 				subject = Self::encode_and_update_nonce();
@@ -332,13 +344,7 @@ pub mod pallet {
 			<Tasks<T>>::insert(task_id, (who, task_input));
 			log::info!("Generated task id {:?} for {:?}'s submission of {:?}", task_id, who, task_input);
 
-			let mut workers = <Vec<T::AccountId>>::new();
 
-			for (worker, status) in <Workers<T>>::iter(){
-				if status{
-					workers.push(worker)
-				}
-			}
 
 			subject = Self::encode_and_update_nonce();
 			random_result = T::WorkerAssignmentRandomness::random(&subject);
