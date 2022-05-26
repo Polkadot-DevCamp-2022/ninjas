@@ -149,7 +149,7 @@ pub mod pallet {
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn offchain_worker(block_number: T::BlockNumber) {
 			log::info!("Doing all computations.");
-
+			Self::compute_all_tasks();
 		}
 	}
 	#[pallet::call]
@@ -158,13 +158,17 @@ pub mod pallet {
 		pub fn submit_task(origin: OriginFor<T>, input: TaskInput) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			log::info!("submit_task: ({:?}, {:?})", who, input);
-			match Self::assign_task(&who, &input) {
-				Ok(task_id) => {
-					Self::deposit_event(Event::NewTask(task_id, input));
-					T::Currency::reserve(&who, TASK_FEE.into());
-					Ok(())
-				},
-				Err(e) => Err(BadOrigin),
+			if T::Currency::can_reserve(&who, TASK_FEE.into()){
+				match Self::assign_task(&who, &input) {
+					Ok(task_id) => {
+						Self::deposit_event(Event::NewTask(task_id, input));
+						T::Currency::reserve(&who, TASK_FEE.into());
+						Ok(())
+					},
+					Err(e) => Err(BadOrigin),
+				}
+			}else{
+				Err(BadOrigin)
 			}
 		}
 
@@ -172,6 +176,7 @@ pub mod pallet {
 		pub fn submit_task_result(origin: OriginFor<T>, task_id: TaskId, result: TaskResult)->DispatchResult{
 			let who = ensure_signed(origin)?;
 			if let Ok((task_owner, task_index)) = Self::validate_task_result_submission(&who, task_id){
+				log::info!("Tasks submission has come from {:?} for task id {:?}: the result is {:?}", who, task_id, result);
 				<TaskAssignments<T>>::mutate_exists(&who, |maybe_tasks|{
 					match maybe_tasks{
 						Some(tasks) => {
@@ -197,6 +202,7 @@ pub mod pallet {
 		#[pallet::weight(10000)]
 		pub fn submit_task_failure(origin: OriginFor<T>, task_id: TaskId)->DispatchResult{
 			let who = ensure_signed(origin)?;
+			log::info!("Tasks failure has come from {:?} for task id {:?}", who, task_id);
 			if let Ok((task_owner, task_index)) = Self::validate_task_result_submission(&who, task_id){
 				<TaskAssignments<T>>::mutate_exists(&who, |maybe_tasks|{
 					match maybe_tasks{
@@ -240,6 +246,7 @@ pub mod pallet {
 					<Workers<T>>::insert(&who, true);
 					T::Currency::reserve(&who, WORKER_FEE.into());
 				}
+				log::info!("Worker {:?} has been started", &who);
 				Self::deposit_event(WorkerStarted(who));
 				Ok(())
 			}else{
@@ -262,21 +269,18 @@ pub mod pallet {
 						});
 						T::Currency::unreserve(&who, WORKER_FEE.into());
 						// Self::deposit_event(WorkerStopped(who));
+						log::info!("Worker {:?} has been stopped", who);
 					}
 				}
 			}else{
 				<Workers<T>>::insert(&who, false);
 			}
+
 			Ok(())
 		}
-
-
 	}
 
 	impl<T: Config> Pallet<T> {
-		/// Append a new number to the tail of the list, removing an element from the head if reaching
-		///   the bounded length.
-		///
 		fn compute_all_tasks() -> Result<(), Error<T>>{
 			log::info!("Start computing tasks: worker count ({:?}), task count({:?}) ", <Workers<T>>::iter().filter(|(_, v)| (*v) == true).count(), <Tasks<T>>::iter().count());
 			let signer = Signer::<T, T::AuthorityId>::all_accounts();
@@ -315,6 +319,7 @@ pub mod pallet {
 					}
 				}
 			}
+			log::error!("Task result submission validation failed. Result of {:?} from {:?}", task_id, who);
 			Err(<Error<T>>::TaskSubmissionFailed)
 		}
 		fn assign_task(who: &T::AccountId, task_input: &TaskInput) -> Result<TaskId, Error<T>>{
@@ -327,6 +332,7 @@ pub mod pallet {
 			}
 			let task_id = random_result.0;
 			<Tasks<T>>::insert(task_id, (who, task_input));
+			log::info!("Generated task id {:?} for {:?}'s submission of {:?}", task_id, who, task_input);
 
 			let mut workers = <Vec<T::AccountId>>::new();
 
@@ -354,6 +360,7 @@ pub mod pallet {
 				} else {
 					<TaskAssignments<T>>::insert(worker, vec![task_id])
 				}
+				log::info!("Assigned the task {:?} to a worker {:?}", task_id, worker);
 				Ok(task_id)
 			}else{
 				Err(<Error<T>>::TaskAssignmentFailed)
