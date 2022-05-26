@@ -1,7 +1,9 @@
+[profile.release]
+panic = 'unwind'
+
 [workspace]
 members = [
-	"pallets/ocw-computation",
-	"runtimes/ocw-runtime",
-	"nodes/kitchen-node",
+  'node',
+  'pallets/*',
+  'runtime',
 ]
-#librocksdb-sys = "6.17.3"

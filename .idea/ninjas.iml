@@ -5,6 +5,11 @@
       <sourceFolder url="file://$MODULE_DIR$/nodes/kitchen-node/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/pallets/ocw-computation/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/runtimes/ocw-runtime/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/node/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/pallets/example-offchain-worker/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/pallets/ocw/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/pallets/template/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/runtime/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
     </content>
     <orderEntry type="inheritedJdk" />
