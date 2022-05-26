@@ -359,7 +359,7 @@ pub mod pallet {
 					workers.push(worker)
 				}
 			}
-
+			log::info!("Live workers count: {:?}", workers.len());
 			if workers.len() == 0{
 				return Err(<Error<T>>::NoWorkerAvailable);
 			}
@@ -377,7 +377,8 @@ pub mod pallet {
 			let hash = random_result.0;
 			let random_usize: usize = hash.to_fixed_bytes().iter().fold(0, |sum, i| sum + (*i as usize));
 
-			let index = random_usize / workers.iter().count();
+			let index = random_usize % workers.iter().count();
+			log::info!("worker index: {:?}", index);
 			if let Some(worker) = workers.get(index) {
 				if <TaskAssignments<T>>::contains_key(worker) {
 					<TaskAssignments<T>>::mutate_exists(worker, {
